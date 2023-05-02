@@ -188,7 +188,7 @@ static int http_server_worker(void *arg)
 
 int http_server_daemon(void *arg)
 {
-    struct socket *socket;
+    struct socket *client_socket;
     struct task_struct *worker;
     struct http_server_param *param = (struct http_server_param *) arg;
 
@@ -196,14 +196,14 @@ int http_server_daemon(void *arg)
     allow_signal(SIGTERM);
 
     while (!kthread_should_stop()) {
-        int err = kernel_accept(param->listen_socket, &socket, 0);
+        int err = kernel_accept(param->listen_socket, &client_socket, 0);
         if (err < 0) {
             if (signal_pending(current))
                 break;
             pr_err("kernel_accept() error: %d\n", err);
             continue;
         }
-        worker = kthread_run(http_server_worker, socket, KBUILD_MODNAME);
+        worker = kthread_run(http_server_worker, client_socket, KBUILD_MODNAME);
         if (IS_ERR(worker)) {
             pr_err("can't create more worker process\n");
             continue;
