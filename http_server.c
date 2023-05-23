@@ -1,7 +1,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/err.h>
+#include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/sched/signal.h>
+#include <linux/string.h>
 #include <linux/tcp.h>
 #include <linux/workqueue.h>
 
@@ -9,18 +12,16 @@
 #include "http_server.h"
 
 #define CRLF "\r\n"
-#define CMWQ_MODE 0
+#define CMWQ_MODE 1
 
-#define HTTP_RESPONSE_200_DUMMY                               \
-    ""                                                        \
-    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF     \
-    "Content-Type: text/plain" CRLF "Content-Length: 12" CRLF \
-    "Connection: Close" CRLF CRLF "Hello World!" CRLF
-#define HTTP_RESPONSE_200_KEEPALIVE_DUMMY                     \
-    ""                                                        \
-    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF     \
-    "Content-Type: text/plain" CRLF "Content-Length: 12" CRLF \
-    "Connection: Keep-Alive" CRLF CRLF "Hello World!" CRLF
+#define HTTP_RESPONSE_200_DUMMY                           \
+    ""                                                    \
+    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF \
+    "Content-Type: text/html" CRLF "Connection: Close" CRLF CRLF
+#define HTTP_RESPONSE_200_KEEPALIVE_DUMMY                 \
+    ""                                                    \
+    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF \
+    "Content-Type: text/html" CRLF "Connection: Keep-Alive" CRLF CRLF
 #define HTTP_RESPONSE_501                                              \
     ""                                                                 \
     "HTTP/1.1 501 Not Implemented" CRLF "Server: " KBUILD_MODNAME CRLF \
@@ -31,6 +32,12 @@
     "HTTP/1.1 501 Not Implemented" CRLF "Server: " KBUILD_MODNAME CRLF \
     "Content-Type: text/plain" CRLF "Content-Length: 21" CRLF          \
     "Connection: KeepAlive" CRLF CRLF "501 Not Implemented" CRLF
+#define HTTP_RESPONSE_DIRECTORY_LIST_BEGIN                \
+    ""                                                    \
+    "<html><head><style>" CRLF                            \
+    "body{font-family: monospace; font-size: 15px;}" CRLF \
+    "td {padding: 1.5px 6px;}" CRLF "</style></head><body><table>" CRLF
+#define HTTP_RESPONSE_DIRECTORY_LIST_END "</table></body></html>" CRLF
 
 #define RECV_BUFFER_SIZE 4096
 
@@ -39,6 +46,7 @@ struct http_request {
     enum http_method method;
     char request_url[128];
     int complete;
+    struct dir_context dir_context;
 };
 
 extern struct workqueue_struct *http_server_wq;
@@ -78,17 +86,59 @@ static int http_server_send(struct socket *sock, const char *buf, size_t size)
     return done;
 }
 
-static int http_server_response(struct http_request *request, int keep_alive)
+static int http_server_trace_dir(struct dir_context *dir_context,
+                                 const char *name,
+                                 int namelen,
+                                 loff_t offset,
+                                 u64 ino,
+                                 unsigned int d_type)
+{
+    if (strcmp(name, ".") && strcmp(name, "..")) {
+        struct http_request *request =
+            container_of(dir_context, struct http_request, dir_context);
+        char buf[256] = {0};
+        snprintf(buf, sizeof(buf),
+                 "<tr><td><a href=\"%s\">%s</a></td></tr>" CRLF, name, name);
+        http_server_send(request->socket, buf, strlen(buf));
+    }
+    return 0;
+}
+
+static void handle_directory(struct http_request *request, int keep_alive)
 {
     char *response;
+    struct file *fp;
 
-    pr_info("requested_url = %s\n", request->request_url);
-    if (request->method != HTTP_GET)
+    request->dir_context.actor = http_server_trace_dir;
+
+    if (request->method != HTTP_GET) {
         response = keep_alive ? HTTP_RESPONSE_501_KEEPALIVE : HTTP_RESPONSE_501;
-    else
-        response = keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
-                              : HTTP_RESPONSE_200_DUMMY;
+        http_server_send(request->socket, response, strlen(response));
+        return;
+    }
+
+    response = keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
+                          : HTTP_RESPONSE_200_DUMMY;
     http_server_send(request->socket, response, strlen(response));
+
+    response = HTTP_RESPONSE_DIRECTORY_LIST_BEGIN;
+    http_server_send(request->socket, response, strlen(response));
+
+    fp = filp_open("/home/xueyang/linux2023/khttpd", O_RDONLY | O_DIRECTORY, 0);
+    if (IS_ERR(fp)) {
+        pr_err("open error: %ld\n", PTR_ERR(fp));
+        return;
+    }
+
+    iterate_dir(fp, &request->dir_context);
+    response = HTTP_RESPONSE_DIRECTORY_LIST_END;
+    http_server_send(request->socket, response, strlen(response));
+    filp_close(fp, NULL);
+}
+
+static int http_server_response(struct http_request *request, int keep_alive)
+{
+    handle_directory(request, keep_alive);
     return 0;
 }
 
