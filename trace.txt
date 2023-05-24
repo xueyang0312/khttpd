@@ -1,0 +1,135 @@
+# tracer: function_graph
+#
+# CPU  DURATION                  FUNCTION CALLS
+# |     |   |                     |   |   |   |
+ 15)               |  finish_task_switch() {
+ 15)   0.118 us    |    raw_spin_rq_unlock();
+ 15)   0.803 us    |  }
+ 15)               |  http_server_worker [khttpd]() {
+ 15)               |    kernel_sigaction() {
+ 15)   0.213 us    |      _raw_spin_lock_irq();
+ 15)   0.381 us    |    }
+ 15)               |    kernel_sigaction() {
+ 15)   0.078 us    |      _raw_spin_lock_irq();
+ 15)   0.218 us    |    }
+ 15)               |    kmem_cache_alloc_trace() {
+ 15)               |      __cond_resched() {
+ 15)   0.066 us    |        rcu_all_qs();
+ 15)   0.194 us    |      }
+ 15)   0.066 us    |      should_failslab();
+ 15)   0.728 us    |    }
+ 15)   0.069 us    |    http_parser_init [khttpd]();
+ 15)               |    http_server_recv.constprop.0 [khttpd]() {
+ 15)               |      kernel_recvmsg() {
+ 15)               |        sock_recvmsg() {
+ 15)   0.371 us    |          security_socket_recvmsg();
+ 15)   1.761 us    |          inet_recvmsg();
+ 15)   2.368 us    |        }
+ 15)   2.525 us    |      }
+ 15)   2.671 us    |    }
+ 15)               |    http_parser_execute [khttpd]() {
+ 15)   0.080 us    |      http_parser_callback_message_begin [khttpd]();
+ 15)   0.180 us    |      parse_url_char [khttpd]();
+ 15)   0.096 us    |      http_parser_callback_request_url [khttpd]();
+ 15)   0.069 us    |      http_parser_callback_header_field [khttpd]();
+ 15)   0.074 us    |      http_parser_callback_header_value [khttpd]();
+ 15)   0.064 us    |      http_parser_callback_header_field [khttpd]();
+ 15)   0.064 us    |      http_parser_callback_header_value [khttpd]();
+ 15)   0.066 us    |      http_parser_callback_header_field [khttpd]();
+ 15)   0.065 us    |      http_parser_callback_header_value [khttpd]();
+ 15)   0.066 us    |      http_parser_callback_header_field [khttpd]();
+ 15)   0.064 us    |      http_parser_callback_header_value [khttpd]();
+ 15)   0.065 us    |      http_parser_callback_header_field [khttpd]();
+ 15)   0.066 us    |      http_parser_callback_header_value [khttpd]();
+ 15)   0.066 us    |      http_parser_callback_headers_complete [khttpd]();
+ 15)   0.069 us    |      http_should_keep_alive [khttpd]();
+ 15)               |      http_parser_callback_message_complete [khttpd]() {
+ 15)   0.061 us    |        http_should_keep_alive [khttpd]();
+ 15)               |        http_server_send [khttpd]() {
+ 15) + 16.139 us   |          kernel_sendmsg();
+ 15) + 16.331 us   |        }
+ 15)               |        http_server_send [khttpd]() {
+ 15) + 10.355 us   |          kernel_sendmsg();
+ 15) + 10.524 us   |        }
+ 15)               |        filp_open() {
+ 15)   0.509 us    |          getname_kernel();
+ 15)   5.464 us    |          file_open_name();
+ 15)   0.184 us    |          putname();
+ 15)   6.478 us    |        }
+ 15)               |        iterate_dir() {
+ 15)   0.280 us    |          security_file_permission();
+ 15)   0.128 us    |          down_read_killable();
+ 15) ! 303.056 us  |          ext4_readdir();
+ 15)   0.116 us    |          fsnotify();
+ 15)   0.244 us    |          touch_atime();
+ 15)   0.807 us    |          up_read();
+ 15) ! 305.347 us  |        }
+ 15)               |        http_server_send [khttpd]() {
+ 15)   1.012 us    |          kernel_sendmsg();
+ 15)   1.162 us    |        }
+ 15)               |        filp_close() {
+ 15)   0.637 us    |          dnotify_flush();
+ 15)   0.080 us    |          locks_remove_posix();
+ 15)   0.678 us    |          fput();
+ 15)   1.695 us    |        }
+ 15) ! 342.200 us  |      }
+ 15) ! 346.837 us  |    }
+ 15)   0.073 us    |    http_should_keep_alive [khttpd]();
+ 15)               |    http_server_recv.constprop.0 [khttpd]() {
+ 15)               |      kernel_recvmsg() {
+ 15)               |        sock_recvmsg() {
+ 15)   0.195 us    |          security_socket_recvmsg();
+ 15) # 1586.625 us |          inet_recvmsg();
+ 15) # 1587.303 us |        }
+ 15) # 1587.720 us |      }
+ 15) # 1587.925 us |    }
+ 15)               |    _printk() {
+ 15)               |      vprintk() {
+ 15)               |        vprintk_default() {
+ 15)   4.531 us    |          vprintk_emit();
+ 15)   4.683 us    |        }
+ 15)   4.854 us    |      }
+ 15)   5.059 us    |    }
+ 15)               |    kernel_sock_shutdown() {
+ 15)               |      inet_shutdown() {
+ 15)               |        lock_sock_nested() {
+ 15)   0.103 us    |          __cond_resched();
+ 15)   0.080 us    |          _raw_spin_lock_bh();
+ 15)   0.096 us    |          _raw_spin_unlock_bh();
+ 15)   0.556 us    |        }
+ 15)               |        tcp_shutdown() {
+ 15)   0.122 us    |          tcp_set_state();
+ 15) + 20.537 us   |          tcp_send_fin();
+ 15) + 20.963 us   |        }
+ 15)               |        sock_def_wakeup() {
+ 15)   0.076 us    |          rcu_read_unlock_strict();
+ 15)   0.245 us    |        }
+ 15)               |        release_sock() {
+ 15)   0.075 us    |          _raw_spin_lock_bh();
+ 15)   2.770 us    |          __release_sock();
+ 15)   0.078 us    |          tcp_release_cb();
+ 15)   0.097 us    |          _raw_spin_unlock_bh();
+ 15)   3.400 us    |        }
+ 15) + 25.579 us   |      }
+ 15) + 25.833 us   |    }
+ 15)               |    sock_release() {
+ 15)               |      __sock_release() {
+ 15)               |        inet_release() {
+ 15)   0.075 us    |          ip_mc_drop_socket();
+ 15)   2.229 us    |          tcp_close();
+ 15)   2.559 us    |        }
+ 15)   0.077 us    |        module_put();
+ 15)               |        iput() {
+ 15)   1.695 us    |          iput.part.0();
+ 15)   1.853 us    |        }
+ 15)   4.822 us    |      }
+ 15)   4.973 us    |    }
+ 15)   0.267 us    |    kfree();
+ 15)               |    _printk() {
+ 15)               |      vprintk() {
+ 15)               |        vprintk_default() {
+ 15)   2.207 us    |          vprintk_emit();
+ 15)   2.356 us    |        }
+ 15)   2.511 us    |      }
+ 15)   2.656 us    |    }
+ 15) # 1979.051 us |  }
