@@ -106,7 +106,7 @@ static int http_server_trace_dir(struct dir_context *dir_context,
             container_of(dir_context, struct http_request, dir_context);
         char buf[256] = {0};
         snprintf(buf, sizeof(buf),
-                 "%lx\r\n<tr><td><a href=\"%s\">%s</a></td></tr>\r\n",
+                 "%x\r\n<tr><td><a href=\"%s\">%s</a></td></tr>\r\n",
                  33 + (namelen << 1), name, name);
         http_server_send(request->socket, buf, strlen(buf));
     }
