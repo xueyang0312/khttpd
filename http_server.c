@@ -14,14 +14,16 @@
 #define CRLF "\r\n"
 #define CMWQ_MODE 1
 
-#define HTTP_RESPONSE_200_DUMMY                           \
-    ""                                                    \
-    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF \
-    "Content-Type: text/html" CRLF "Connection: Close" CRLF CRLF
-#define HTTP_RESPONSE_200_KEEPALIVE_DUMMY                 \
-    ""                                                    \
-    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF \
-    "Content-Type: text/html" CRLF "Connection: Keep-Alive" CRLF CRLF
+#define HTTP_RESPONSE_200_DUMMY                             \
+    ""                                                      \
+    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF   \
+    "Content-Type: text/html" CRLF "Connection: Close" CRLF \
+    "Transfer-Encoding: chunked" CRLF CRLF
+#define HTTP_RESPONSE_200_KEEPALIVE_DUMMY                        \
+    ""                                                           \
+    "HTTP/1.1 200 OK" CRLF "Server: " KBUILD_MODNAME CRLF        \
+    "Content-Type: text/html" CRLF "Connection: Keep-Alive" CRLF \
+    "Transfer-Encoding: chunked" CRLF CRLF
 #define HTTP_RESPONSE_501                                              \
     ""                                                                 \
     "HTTP/1.1 501 Not Implemented" CRLF "Server: " KBUILD_MODNAME CRLF \
@@ -32,12 +34,18 @@
     "HTTP/1.1 501 Not Implemented" CRLF "Server: " KBUILD_MODNAME CRLF \
     "Content-Type: text/plain" CRLF "Content-Length: 21" CRLF          \
     "Connection: KeepAlive" CRLF CRLF "501 Not Implemented" CRLF
+/**
+ * * If CRLF must be included in chunk data, the len of CRLF is 2.
+ * * The len of chunk data is len of char array + 2 * the number of CRLF.
+ */
 #define HTTP_RESPONSE_DIRECTORY_LIST_BEGIN                \
     ""                                                    \
-    "<html><head><style>" CRLF                            \
+    "7B" CRLF "<html><head><style>" CRLF                  \
     "body{font-family: monospace; font-size: 15px;}" CRLF \
     "td {padding: 1.5px 6px;}" CRLF "</style></head><body><table>" CRLF
-#define HTTP_RESPONSE_DIRECTORY_LIST_END "</table></body></html>" CRLF
+#define HTTP_RESPONSE_DIRECTORY_LIST_END \
+    ""                                   \
+    "16" CRLF "</table></body></html>" CRLF "0" CRLF CRLF
 
 #define RECV_BUFFER_SIZE 4096
 
@@ -98,7 +106,8 @@ static int http_server_trace_dir(struct dir_context *dir_context,
             container_of(dir_context, struct http_request, dir_context);
         char buf[256] = {0};
         snprintf(buf, sizeof(buf),
-                 "<tr><td><a href=\"%s\">%s</a></td></tr>" CRLF, name, name);
+                 "%lx\r\n<tr><td><a href=\"%s\">%s</a></td></tr>\r\n",
+                 33 + (namelen << 1), name, name);
         http_server_send(request->socket, buf, strlen(buf));
     }
     return 0;
