@@ -13,6 +13,7 @@
 
 #define CRLF "\r\n"
 #define CMWQ_MODE 1
+#define PATH "/home/xueyang/linux2023/khttpd"
 
 #define HTTP_RESPONSE_200_DUMMY                             \
     ""                                                      \
@@ -94,6 +95,24 @@ static int http_server_send(struct socket *sock, const char *buf, size_t size)
     return done;
 }
 
+static void http_server_send_header(struct socket *sock,
+                                    int status,
+                                    const char *status_msg,
+                                    const char *content_type,
+                                    int keep_alive,
+                                    int content_length)
+{
+    char buf[256] = {0};
+    snprintf(buf, sizeof(buf),
+             "HTTP/1.1 %d %s" CRLF "Server: " KBUILD_MODNAME CRLF
+             "Content-Type: %s" CRLF "Content-Length: %d" CRLF
+             "Connection: %s" CRLF CRLF,
+             status, status_msg, content_type, content_length,
+             keep_alive ? "Keep-Alive" : "Close");
+    http_server_send(sock, buf, strlen(buf));
+}
+
+
 static int http_server_trace_dir(struct dir_context *dir_context,
                                  const char *name,
                                  int namelen,
@@ -113,9 +132,15 @@ static int http_server_trace_dir(struct dir_context *dir_context,
     return 0;
 }
 
+static inline int read_file(struct file *fp, char *buf)
+{
+    return kernel_read(fp, buf, fp->f_inode->i_size, 0);
+}
+
 static void handle_directory(struct http_request *request, int keep_alive)
 {
     char *response;
+    char absolute_path[100];
     struct file *fp;
 
     request->dir_context.actor = http_server_trace_dir;
@@ -126,22 +151,41 @@ static void handle_directory(struct http_request *request, int keep_alive)
         return;
     }
 
-    response = keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
-                          : HTTP_RESPONSE_200_DUMMY;
-    http_server_send(request->socket, response, strlen(response));
+    /* extern struct file *filp_open(const char *, int, umode_t); */
+    strncpy(absolute_path, PATH, strlen(PATH));
+    strncat(absolute_path, request->request_url, strlen(request->request_url));
 
-    response = HTTP_RESPONSE_DIRECTORY_LIST_BEGIN;
-    http_server_send(request->socket, response, strlen(response));
-
-    fp = filp_open("/home/xueyang/linux2023/khttpd", O_RDONLY | O_DIRECTORY, 0);
+    fp = filp_open(absolute_path, O_RDONLY, 0);
     if (IS_ERR(fp)) {
-        pr_err("open error: %ld\n", PTR_ERR(fp));
+        pr_err("open error: %s %ld\n", absolute_path, PTR_ERR(fp));
         return;
+    } else {
+        printk("open success: %s\n", absolute_path);
     }
 
-    iterate_dir(fp, &request->dir_context);
-    response = HTTP_RESPONSE_DIRECTORY_LIST_END;
-    http_server_send(request->socket, response, strlen(response));
+    if (S_ISDIR(fp->f_inode->i_mode)) {
+        response = keep_alive ? HTTP_RESPONSE_200_KEEPALIVE_DUMMY
+                              : HTTP_RESPONSE_200_DUMMY;
+        http_server_send(request->socket, response, strlen(response));
+
+        response = HTTP_RESPONSE_DIRECTORY_LIST_BEGIN;
+        http_server_send(request->socket, response, strlen(response));
+        iterate_dir(fp, &request->dir_context);
+        response = HTTP_RESPONSE_DIRECTORY_LIST_END;
+        http_server_send(request->socket, response, strlen(response));
+    } else {
+        /* is a file */
+        char *read_data = kmalloc(fp->f_inode->i_size, GFP_KERNEL);
+        int ret = read_file(fp, read_data);
+        if (ret < 0) {
+            pr_err("read file error: %d\n", ret);
+            return;
+        }
+        http_server_send_header(request->socket, 200, "OK", "text/plain",
+                                keep_alive, ret);
+        http_server_send(request->socket, read_data, ret);
+        kfree(read_data);
+    }
     filp_close(fp, NULL);
 }
 
