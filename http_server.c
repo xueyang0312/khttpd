@@ -2,7 +2,6 @@
 
 #include <linux/err.h>
 #include <linux/fs.h>
-#include <linux/kthread.h>
 #include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/tcp.h>
@@ -12,8 +11,8 @@
 #include "http_server.h"
 
 #define CRLF "\r\n"
-#define CMWQ_MODE 1
-#define PATH "/home/xueyang/linux2023/khttpd"
+#define CMWQ_MODE 0
+#define PATH "/home/oslab/xueyang/linux2023/khttpd"
 
 #define HTTP_RESPONSE_200_DUMMY                             \
     ""                                                      \
@@ -152,8 +151,10 @@ static void handle_directory(struct http_request *request, int keep_alive)
     }
 
     /* extern struct file *filp_open(const char *, int, umode_t); */
-    strncpy(absolute_path, PATH, strlen(PATH));
-    strncat(absolute_path, request->request_url, strlen(request->request_url));
+    memcpy(absolute_path, PATH, strlen(PATH));
+    memcpy(absolute_path + strlen(PATH), request->request_url,
+           strlen(request->request_url));
+    absolute_path[strlen(PATH) + strlen(request->request_url)] = '\0';
 
     fp = filp_open(absolute_path, O_RDONLY, 0);
     if (IS_ERR(fp)) {
@@ -408,7 +409,8 @@ int http_server_daemon(void *arg)
         /* start server worker */
         queue_work(http_server_wq, work);
 #else
-        worker = kthread_run(http_server_worker, client_socket, KBUILD_MODNAME);
+        worker =
+            my_kthread_run(http_server_worker, client_socket, KBUILD_MODNAME);
         if (IS_ERR(worker)) {
             pr_err("can't create more worker process\n");
             continue;
