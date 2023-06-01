@@ -1,9 +1,16 @@
 #ifndef KHTTPD_HTTP_SERVER_H
 #define KHTTPD_HTTP_SERVER_H
 
+#include <linux/kthread.h>
 #include <net/sock.h>
 
+
 #define MODULE_NAME "khttpd"
+
+extern struct task_struct *my_kthread_run(int (*threadfn)(void *data),
+                                          void *data,
+                                          const char *namefmt,
+                                          ...);
 
 struct http_server_param {
     struct socket *listen_socket;

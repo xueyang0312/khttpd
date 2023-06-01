@@ -20,8 +20,8 @@ int end_function(struct pt_regs *ctx)
 """
 
 b = BPF(text = code)
-b.attach_kprobe(event = 'my_thread_run', fn_name = 'probe_handler')
-b.attach_kretprobe(event = 'my_thread_run', fn_name = 'end_function')
+b.attach_kprobe(event = 'my_kthread_run', fn_name = 'probe_handler')
+b.attach_kretprobe(event = 'my_kthread_run', fn_name = 'end_function')
 
 while True:
 	try:

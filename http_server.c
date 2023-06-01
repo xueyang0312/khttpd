@@ -326,6 +326,15 @@ static void free_work(void)
 
 #else
 
+struct task_struct *my_kthread_run(int (*threadfn)(void *data),
+                                   void *data,
+                                   const char *namefmt,
+                                   ...)
+{
+    // Call the original kthread_run function
+    return kthread_run(threadfn, data, namefmt);
+}
+
 static int http_server_worker(void *arg)
 {
     char *buf;
